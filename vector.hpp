@@ -1,35 +1,20 @@
-/*
-Author: David Holmqvist <daae19@student.bth.se>
-*/
+#ifndef VECTOR_H
+#define VECTOR_H
 
-#if !defined(VECTOR_HPP)
-#define VECTOR_HPP
+#include "immintrin.h"
 
-class Vector {
+class Vector
+{
 private:
-    float dataNew[1024];
-    unsigned size;
-    double* data;
+    unsigned size = 0;
+    double sum = 0;
+    alignas(32) double data[1024];
 
 public:
-    Vector();
-    Vector(unsigned size);
-    Vector(unsigned size, double* data);
-    Vector(const Vector& other);
-    ~Vector();
-
-    double magnitude() const;
-    double mean() const;
-    double normalize() const;
-    double dot(Vector rhs) const;
-
-    unsigned get_size() const;
-    double* get_data();
-
-    Vector operator/(double div);
-    Vector operator-(double sub);
-    double operator[](unsigned i) const;
-    double& operator[](unsigned i);
+    void Add(double num);
+    double Mean() const;
+    void operator-(double sub);
+    double Magnitude() const;
 };
 
 #endif
