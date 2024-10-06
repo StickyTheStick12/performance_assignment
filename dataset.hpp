@@ -1,16 +1,11 @@
-/*
-Author: David Holmqvist <daae19@student.bth.se>
-*/
+#ifndef DATASET_H
+#define DATASET_H
 
-#include "vector.hpp"
-#include <string>
+#include <fstream>
+#include <array>
+#include "vector.h"
 
-#if !defined(DATASET_HPP)
-#define DATASET_HPP
-
-namespace Dataset {
-std::vector<Vector> read(std::string filename);
-void write(std::vector<double> data, std::string filename);
-};
+void Read(const std::string& filename, std::array<Vector, 1024>& matrix);
+void Write(const std::string& filename, std::array<std::array<double, 1024>, 1024>& matrix);
 
 #endif
