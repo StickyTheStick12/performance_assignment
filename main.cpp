@@ -3,7 +3,7 @@
 #include "dataset.h"
 
 //TODO
-// 1: check if we can use 512 bit instructions for vector, then remove 256 bit
+// 1: check if we can use 512 bit instructions for vector, then remove 256 bit (check alignment (must be 64))
 // 2: increase stack in main
 // 3: fix vector division
 // 4: fix vector dot product
