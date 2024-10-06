@@ -1,112 +1,77 @@
-/*
-Author: David Holmqvist <daae19@student.bth.se>
-*/
+#include "vector.h"
 
-#include "vector.hpp"
-#include <iostream>
-#include <cmath>
-
-Vector::Vector()
-    : size { 0 }
+void Vector::Add(const double num)
 {
+    data[size++] = num;
+    sum += num;
 }
 
-Vector::~Vector()
+double Vector::Mean() const
 {
-    if (data) {
-        delete[] data;
+    return sum / size;
+}
+
+void Vector::operator-(const double sub)
+{
+    __m256d vec_scalar = _mm256_set1_pd(sub);
+
+    for(unsigned i = 0; i < size; i += 4)
+    {
+        __m256d vec_data = _mm256_load_pd(&data[i]); // Ensure `array` is aligned to 32 bytes
+        __m256d vec_result = _mm256_sub_pd(vec_data, vec_scalar);
+        _mm256_store_pd(&data[i], vec_result);
     }
 
-    size = 0;
-}
+    /*
+    __m512d vec_scalar = _mm512_set1_pd(sub);
 
-Vector::Vector(unsigned size)
-    : size { size }
-    , data { new double[size] }
-{
-}
-
-Vector::Vector(unsigned size, double* data)
-    : size { size }
-    , data { data }
-{
-}
-
-Vector::Vector(const Vector& other)
-    : Vector { other.size }
-{
-    for (auto i { 0 }; i < size; i++) {
-        data[i] = other.data[i];
+    for(unsigned i = 0; i < size; i += 8)
+    {
+        __m512d vec_data = _mm512_load_pd(&data[i]); // Ensure `array` is aligned to 32 bytes
+        __m256d vec_result = _mm512_sub_pd(vec_data, vec_scalar);
+        _mm512_store_pd(&data[i], vec_result);
     }
+     */
 }
 
-unsigned Vector::get_size() const
+double Vector::Magnitude() const
 {
-    return size;
-}
+    __m256d sum = _mm256_setzero_pd();
 
-double* Vector::get_data()
-{
-    return data;
-}
+    for(unsigned i = 0; i < size; i += 4)
+    {
+        __m256d vec_data = _mm256_load_pd(&data[i]);
 
-double Vector::operator[](unsigned i) const
-{
-    return data[i];
-}
+        __m256d product = _mm256_mul_pd(vec_data, vec_data);
 
-double& Vector::operator[](unsigned i)
-{
-    return data[i];
-}
-
-double Vector::mean() const
-{
-    double sum { 0 };
-
-    //reverse loop
-    for (auto i { 0 }; i < size; i++) {
-        sum += data[i];
+        sum = _mm256_add_pd(sum, product);
     }
 
-    return sum / static_cast<double>(size);
-}
+    alignas(32) double result[4];
+    _mm256_store_pd(result, sum);
 
-double Vector::magnitude() const
-{
-    auto dot_prod { dot(*this) };
-    return std::sqrt(dot_prod);
-}
+    return result[0] + result[1] + result[2] + result[3];
 
-Vector Vector::operator/(double div)
-{
-    auto result { *this };
+    /*
+    __m512d sum = _mm512_setzero_pd();
 
-    for (auto i { 0 }; i < size; i++) {
-        result[i] /= div;
+    for(unsigned i = 0; i < size; i += 8)
+    {
+        __m512d vec_data = _mm512_load_pd(&data[i]);
+
+        __m512d product = _mm512_mul_pd(vec_data, vec_data);
+
+        sum = _mm512_add_pd(sum, product);
     }
 
-    return result;
+    alignas(32) double result[8];
+    _mm512_store_pd(result, sum); // Store the AVX register into a regular array
+
+    // Final reduction (sum the elements of result array)
+    return result[0] + result[1] + result[2] + result[3] + result[4] + result[5] + result[6] + result[7];
+     */
 }
 
-Vector Vector::operator-(double sub)
-{
-    auto result { *this };
 
-    for (auto i { 0 }; i < size; i++) {
-        result[i] -= sub;
-    }
 
-    return result;
-}
 
-double Vector::dot(Vector rhs) const
-{
-    double result { 0 };
-
-    for (auto i { 0 }; i < size; i++) {
-        result += data[i] * rhs[i];
-    }
-
-    return result;
-}
