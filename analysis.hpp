@@ -1,16 +1,10 @@
-/*
-Author: David Holmqvist <daae19@student.bth.se>
-*/
+#ifndef ANALYSIS_H
+#define ANALYSIS_H
 
-#include "vector.hpp"
-#include <vector>
+#include <array>
+#include "vector.h"
 
-#if !defined(ANALYSIS_HPP)
-#define ANALYSIS_HPP
-
-namespace Analysis {
-std::vector<double> correlation_coefficients(std::vector<Vector> datasets);
-double pearson(Vector vec1, Vector vec2);
-};
+int Correlation_coefficients(std::array<Vector, 1024> &matrix, std::array<double, 523776>& data);
+double Pearson(Vector& vec1, Vector& vec2);
 
 #endif
