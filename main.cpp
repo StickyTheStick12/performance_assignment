@@ -3,18 +3,15 @@
 #include "dataset.h"
 
 //TODO
-// 1: fix 1024 dataset
-// 2: fix multithreading
-// 3: general code cleanup
-// 4: can move the data read from file to another function and pass the data array to that so when that func leaves it gets deleted so we dont smash the stack
+// 1: fix multithreading
+// 2: general code cleanup
+// 3: find improvements for report
 
 int main(int argc, char const* argv[])
 {
-    int file = open(argv[1], O_RDONLY);
+    int file = open("128.data", O_RDONLY);
 
     off_t size = lseek(file, 0, SEEK_END);
-
-    lseek(file, 0, SEEK_SET); // TODO: IS this needed
 
     char* mappedData = static_cast<char*>(mmap(nullptr, size, PROT_READ, MAP_PRIVATE, file, 0));
 
@@ -45,7 +42,8 @@ int main(int argc, char const* argv[])
 
         return 0;
     }
-    else if(dimension == 256)
+
+    if(dimension == 256)
     {
         std::array<Vector256, 256> matrix;
 
@@ -62,7 +60,8 @@ int main(int argc, char const* argv[])
         return 0;
 
     }
-    else if(dimension == 512)
+
+    if(dimension == 512)
     {
         std::array<Vector512, 512> matrix;
 
@@ -78,10 +77,28 @@ int main(int argc, char const* argv[])
 
         return 0;
     }
-    else
-    {
-        std::array<Vector1024, 512> matrix;
-        return 0;
 
-    }
+    std::array<Vector1024, 512> matrix;
+
+    for(int i = 0; i < 512; ++i)
+        for(int x = (i*dimension); x < (i*dimension)+dimension; ++x)
+            matrix[i].Add(CharArrToDouble(mappedData+endPoint+6*x));
+
+    double* data = new double[523776];
+
+    int index = CorrelationCoefficients1024(matrix, data);
+
+    Vector1024 temp = matrix[511];
+
+    for(int i = 512; i < 1024; ++i)
+        for(int x = (i*dimension); x < (i*dimension)+dimension; ++x)
+            matrix[i].Add(CharArrToDouble(mappedData+endPoint+6*x));
+
+    data[index++] = Pearson1024(temp, matrix[0]);
+
+    CorrelationCoefficients1024(matrix, data, index);
+
+    Write1024(argv[2], data);
+
+    return 0;
 }
