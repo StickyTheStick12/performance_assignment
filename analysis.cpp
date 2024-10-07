@@ -2,6 +2,7 @@
 
 void CorrelationCoefficients128(std::array<Vector128, 128> &matrix, std::array<double, 8128>& data)
 {
+    int index = 0;
     for(unsigned i = 0; i < 127; ++i)
         for(unsigned j = (i+1); j < 128; ++j)
             data[index++] = Pearson128(matrix[i], matrix[j]);
@@ -9,6 +10,7 @@ void CorrelationCoefficients128(std::array<Vector128, 128> &matrix, std::array<d
 
 void CorrelationCoefficients256(std::array<Vector256, 256> &matrix, std::array<double, 32640>& data)
 {
+    int index = 0;
     for(unsigned i = 0; i < 255; ++i)
         for(unsigned j = (i+1); j < 256; ++j)
             data[index++] = Pearson256(matrix[i], matrix[j]);
@@ -22,12 +24,13 @@ void CorrelationCoefficients512(std::array<Vector512, 512> &matrix, std::array<d
             data[index++] = Pearson512(matrix[i], matrix[j]);
 }
 
-void CorrelationCoefficients1024(std::array<Vector512, 512> &matrix, std::array<double, 130816>& data)
+int CorrelationCoefficients1024(std::array<Vector1024, 512> &matrix, double* data, int index)
 {
-    int index = 0;
     for(unsigned i = 0; i < 511; ++i)
         for(unsigned j = (i+1); j < 512; ++j)
-            data[index++] = Pearson(matrix[i], matrix[j]);
+            data[index++] = Pearson1024(matrix[i], matrix[j]);
+
+    return index;
 }
 
 double Pearson128(Vector128 vec1, Vector128 vec2)
