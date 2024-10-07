@@ -11,44 +11,71 @@ double CharArrToDouble(const char *arr)
 }
 
 
-void Read(const std::string &filename, std::array<Vector, 512> &matrix)
+void Write128(const std::string& filename, std::array<double, 8128>& data)
 {
-    int file = open(filename.c_str(), O_RDONLY);
+    std::ofstream file(filename);
 
-    off_t size = lseek(file, 0, SEEK_END);
+    // Set precision for the file output
+    file << std::setprecision(std::numeric_limits<double>::digits10 + 1);
 
-    lseek(file, 0, SEEK_SET);
+    std::ostringstream buffer;
+    for (unsigned i = 0; i < 8128; ++i)
+        buffer << data[i] << '\n'; // Append each double to the buffer
 
-    char* mappedData = static_cast<char*>(mmap(nullptr, size, PROT_READ, MAP_PRIVATE, file, 0));
+    // Write the entire buffer to the file
+    file << buffer.str();
 
-    int dimension = 0;
-
-    off_t endPoint = 3;
-
-    if(mappedData[3] != '\n')
-        endPoint++;
-
-    for(off_t i = 0; i < endPoint; ++i)
-        dimension = dimension*10 + (mappedData[i] - '0');
-
-    endPoint++; //jump over newline
-
-    for(int i = 0; i < dimension; ++i)
-        for(int x = (i*dimension); x < (i*dimension)+dimension; ++x)
-            matrix[i].Add(CharArrToDouble(mappedData+endPoint+6*x));
+    file.close();
 }
 
-
-void Write(const std::string& filename, std::array<double, 130816>& data, int endPoint)
+void Write256(const std::string& filename, std::array<double, 32640>& data)
 {
-    //TODO: fix, roughly 5 percent on callgrind spent here
+    std::ofstream file(filename);
 
-    std::ofstream file;
+    // Set precision for the file output
+    file << std::setprecision(std::numeric_limits<double>::digits10 + 1);
 
-    file.open(filename);
+    std::ostringstream buffer;
+    for (unsigned i = 0; i < 32640; ++i)
+        buffer << data[i] << '\n'; // Append each double to the buffer
 
-    for(unsigned i = 0; i < endPoint; ++i) {
-        file << std::setprecision(std::numeric_limits<double>::digits10 + 1) << data[i] << std::endl;
-    }
+    // Write the entire buffer to the file
+    file << buffer.str();
+
+    file.close();
+}
+
+void Write512(const std::string& filename, std::array<double, 130816>& data)
+{
+    std::ofstream file(filename);
+
+    // Set precision for the file output
+    file << std::setprecision(std::numeric_limits<double>::digits10 + 1);
+
+    std::ostringstream buffer;
+    for (unsigned i = 0; i < 130816; ++i)
+        buffer << data[i] << '\n'; // Append each double to the buffer
+
+    // Write the entire buffer to the file
+    file << buffer.str();
+
+    file.close();
+}
+
+void Write128(const std::string& filename, std::array<double, 130816>& data)
+{
+    std::ofstream file(filename);
+
+    // Set precision for the file output
+    file << std::setprecision(std::numeric_limits<double>::digits10 + 1);
+
+    std::ostringstream buffer;
+    for (unsigned i = 0; i < 130816; ++i)
+        buffer << data[i] << '\n'; // Append each double to the buffer
+
+    // Write the entire buffer to the file
+    file << buffer.str();
+
+    file.close();
 }
 

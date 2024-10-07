@@ -4,25 +4,84 @@
 
 //TODO
 // 1: fix 1024 dataset
-// 2: fix so we use dimension everywhere and not hardcoded
+// 2: fix multithreading
 // 3: general code cleanup
-// 4: fix multithreading
-// 5: general code cleanup
-
-
-
+// 4: can move the data read from file to another function and pass the data array to that so when that func leaves it gets deleted so we dont smash the stack
 
 int main(int argc, char const* argv[])
 {
-    std::array<Vector128, 512> matrix;
+    int file = open(argv[1], O_RDONLY);
 
-    Read("128.data", matrix);
+    off_t size = lseek(file, 0, SEEK_END);
 
-    std::array<double, 130816> data;
+    lseek(file, 0, SEEK_SET); // TODO: IS this needed
 
-    int index = Correlation_coefficients(matrix, data);
+    char* mappedData = static_cast<char*>(mmap(nullptr, size, PROT_READ, MAP_PRIVATE, file, 0));
 
-    Write("out.txt", data, index);
+    int dimension = 0;
 
-    return 0;
+    off_t endPoint = 3;
+
+    if(mappedData[3] != '\n')
+        endPoint++;
+
+    for(off_t i = 0; i < endPoint; ++i)
+        dimension = dimension*10 + (mappedData[i] - '0');
+
+    endPoint++; //jump over newline
+
+    if(dimension == 128) {
+        std::array<Vector128, 128> matrix;
+
+        for(int i = 0; i < dimension; ++i)
+            for(int x = (i*dimension); x < (i*dimension)+dimension; ++x)
+                matrix[i].Add(CharArrToDouble(mappedData+endPoint+6*x));
+
+        std::array<double, 8128> data;
+
+        CorrelationCoefficients128(matrix, data);
+
+        Write128(argv[2], data);
+
+        return 0;
+    }
+    else if(dimension == 256)
+    {
+        std::array<Vector256, 256> matrix;
+
+        for(int i = 0; i < dimension; ++i)
+            for(int x = (i*dimension); x < (i*dimension)+dimension; ++x)
+                matrix[i].Add(CharArrToDouble(mappedData+endPoint+6*x));
+
+        std::array<double, 32640> data;
+
+        CorrelationCoefficients256(matrix, data);
+
+        Write256(argv[2], data);
+
+        return 0;
+
+    }
+    else if(dimension == 512)
+    {
+        std::array<Vector512, 512> matrix;
+
+        for(int i = 0; i < dimension; ++i)
+            for(int x = (i*dimension); x < (i*dimension)+dimension; ++x)
+                matrix[i].Add(CharArrToDouble(mappedData+endPoint+6*x));
+
+        std::array<double, 130816> data;
+
+        CorrelationCoefficients512(matrix, data);
+
+        Write512(argv[2], data);
+
+        return 0;
+    }
+    else
+    {
+        std::array<Vector1024, 512> matrix;
+        return 0;
+
+    }
 }
