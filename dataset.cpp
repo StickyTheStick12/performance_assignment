@@ -62,7 +62,7 @@ void Write512(const std::string& filename, std::array<double, 130816>& data)
     file.close();
 }
 
-void Write128(const std::string& filename, std::array<double, 130816>& data)
+void Write1024(const std::string& filename, double* data)
 {
     std::ofstream file(filename);
 
@@ -70,7 +70,7 @@ void Write128(const std::string& filename, std::array<double, 130816>& data)
     file << std::setprecision(std::numeric_limits<double>::digits10 + 1);
 
     std::ostringstream buffer;
-    for (unsigned i = 0; i < 130816; ++i)
+    for (unsigned i = 0; i < 523776; ++i)
         buffer << data[i] << '\n'; // Append each double to the buffer
 
     // Write the entire buffer to the file
@@ -78,4 +78,3 @@ void Write128(const std::string& filename, std::array<double, 130816>& data)
 
     file.close();
 }
-
