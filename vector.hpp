@@ -2,19 +2,21 @@
 #define VECTOR_H
 
 #include "immintrin.h"
+#include <cmath>
 
 class Vector
 {
-private:
     unsigned size = 0;
     double sum = 0;
-    alignas(32) double data[1024];
 
 public:
+    alignas(32) double data[512];
     void Add(double num);
     double Mean() const;
     void operator-(double sub);
+    void operator/(double divisor);
     double Magnitude() const;
+    double DotProduct(const Vector& other) const;
 };
 
 #endif
