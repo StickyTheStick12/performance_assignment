@@ -13,6 +13,15 @@ double CharArrToDouble(const char *arr)
 
 void Write128(const std::string& filename, std::array<double, 8128>& data)
 {
+    int fd = open(filename.c_str(), O_WRONLY | O_CREAT, 0666);
+    size_t fileSize = 165000;
+
+    ftruncate(fd, fileSize);
+
+    char* mappedData = static_cast<char*>(mmap(nullptr, fileSize, PROT_WRITE, MAP_SHARED, fd, 0));
+
+
+
     std::ofstream file(filename);
 
     // Set precision for the file output
