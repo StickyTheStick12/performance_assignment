@@ -56,6 +56,9 @@ int main(int argc, char const* argv[])
             for(int x = (i*dimension); x < (i*dimension)+dimension; ++x)
                 matrix[i].Add(CharArrToDouble(mappedData+endPoint+6*x));
 
+        munmap(mappedData, size);
+        close(file);
+
         std::array<double, 8128> data;
 
         CorrelationCoefficients128(matrix, data);
@@ -73,6 +76,9 @@ int main(int argc, char const* argv[])
             for(int x = (i*dimension); x < (i*dimension)+dimension; ++x)
                 matrix[i].Add(CharArrToDouble(mappedData+endPoint+6*x));
 
+        munmap(mappedData, size);
+        close(file);
+
         std::array<double, 32640> data;
 
         CorrelationCoefficients256(matrix, data);
@@ -89,6 +95,9 @@ int main(int argc, char const* argv[])
         for(int i = 0; i < dimension; ++i)
             for(int x = (i*dimension); x < (i*dimension)+dimension; ++x)
                 matrix[i].Add(CharArrToDouble(mappedData+endPoint+6*x));
+
+        munmap(mappedData, size);
+        close(file);
 
         std::array<double, 130816> data;
 

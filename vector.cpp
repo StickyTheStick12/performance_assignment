@@ -17,7 +17,7 @@ void Vector128::operator-(const double sub)
 
     for(unsigned i = 0; i < size; i += 4)
     {
-        __m256d vec_data = _mm256_load_pd(&data[i]); // Ensure `array` is aligned to 32 bytes
+        __m256d vec_data = _mm256_load_pd(&data[i]);
         __m256d vec_result = _mm256_sub_pd(vec_data, vec_scalar);
         _mm256_store_pd(&data[i], vec_result);
     }
