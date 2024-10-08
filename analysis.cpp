@@ -1,5 +1,9 @@
 #include "analysis.h"
 
+std::atomic<int> counter(0);
+std::atomic<int> index(0);
+
+
 void CorrelationCoefficients128(std::array<Vector128, 128> &matrix, std::array<double, 8128>& data)
 {
     int index = 0;
@@ -29,6 +33,36 @@ int CorrelationCoefficients1024(std::array<Vector1024, 512> &matrix, double* dat
     for(unsigned i = 0; i < 511; ++i)
         for(unsigned j = (i+1); j < 512; ++j)
             data[index++] = Pearson1024(matrix[i], matrix[j]);
+
+    return index;
+}
+
+void CorrelationCoefficients128Threaded(std::array<Vector128, 128> &matrix, std::array<double, 8128>& data)
+{
+    for(unsigned i = counter.fetch_add(1); i < 127;)
+        for(unsigned j = (i+1); j < 128; ++j)
+            data[index.fetch_add(1)] = Pearson128(matrix[i], matrix[j]);
+}
+
+void CorrelationCoefficients256Threaded(std::array<Vector256, 256> &matrix, std::array<double, 32640>& data)
+{
+    for(unsigned i = counter.fetch_add(1); i < 255;)
+        for(unsigned j = (i+1); j < 256; ++j)
+            data[index.fetch_add(1)] = Pearson256(matrix[i], matrix[j]);
+}
+
+void CorrelationCoefficients512Threaded(std::array<Vector512, 512> &matrix, std::array<double, 130816>& data)
+{
+    for(unsigned i = counter.fetch_add(1); i < 511; ++i)
+        for(unsigned j = (i+1); j < 512; ++j)
+            data[index.fetch_add(1)] = Pearson512(matrix[i], matrix[j]);
+}
+
+int CorrelationCoefficients1024Threaded(std::array<Vector1024, 512> &matrix, double* data)
+{
+    for(unsigned i = counter.fetch_add(1); i < 511; ++i)
+        for(unsigned j = (i+1); j < 512; ++j)
+            data[index.fetch_add(1)] = Pearson1024(matrix[i], matrix[j]);
 
     return index;
 }
