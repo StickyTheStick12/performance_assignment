@@ -1,11 +1,33 @@
 #include "analysis.h"
 #include "vector.h"
 #include "dataset.h"
+#include <atomic>
+#include <thread>
+
 
 //TODO
 // 1: fix multithreading
 // 2: general code cleanup
 // 3: find improvements for report
+
+std::atomic<int> counter(0);
+
+void Thread128(char* mappedData, std::array<Vector128, 128>& matrix, int endPoint)
+{
+    for(int i = counter.fetch_add(1); i < 128;)
+    {
+        for(int x = (i*128); x < (i*128)+128; ++x)
+            matrix[i].Add(CharArrToDouble(mappedData+endPoint+6*x));
+    }
+
+    std::array<double, 8128> data;
+
+    CorrelationCoefficients128Threaded(matrix, data);
+
+    std::string filename = "output.txt";
+
+    Write128(filename, data);
+}
 
 int main(int argc, char const* argv[])
 {
@@ -58,7 +80,6 @@ int main(int argc, char const* argv[])
         Write256(argv[2], data);
 
         return 0;
-
     }
 
     if(dimension == 512)
