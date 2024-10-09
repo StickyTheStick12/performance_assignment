@@ -3,14 +3,12 @@
 #include "dataset.h"
 #include <atomic>
 #include <thread>
+#include <charconv>
 
 
 //TODO
 // 1: fix multithreading
-// 2. check if 128.data generates correct data
-// 3. check the others generate correct data
-// 2: general code cleanup
-// 3: find improvements for report
+// 2: find improvements for report
 
 int inFile;
 int outFile;
@@ -26,7 +24,11 @@ void Thread128(char* mappedData, std::array<Vector128, 128>& matrix, int endPoin
     for(i = counterIn.fetch_add(1); i < 128;)
     {
         for(int x = (i*128); x < (i*128)+128; ++x)
-            matrix[i].Add(CharArrToDouble(mappedData+endPoint+6*x));
+        {
+            double d;
+            std::from_chars(mappedData+endPoint+6*x, mappedData+endPoint+6*x+5, d);
+            matrix[i].Add(d);
+        }
     }
 
     if(i == 127)
@@ -59,7 +61,11 @@ void Thread256(char* mappedData, std::array<Vector256, 256>& matrix, int endPoin
     for(i = counterIn.fetch_add(1); i < 256;)
     {
         for(int x = (i*256); x < (i*256)+256; ++x)
-            matrix[i].Add(CharArrToDouble(mappedData+endPoint+6*x));
+        {
+            double d;
+            std::from_chars(mappedData+endPoint+6*x, mappedData+endPoint+6*x+5, d);
+            matrix[i].Add(d);
+        }
     }
 
     if(i == 255)
@@ -92,7 +98,11 @@ void Thread512(char* mappedData, std::array<Vector512, 512>& matrix, int endPoin
     for(i = counterIn.fetch_add(1); i < 512;)
     {
         for(int x = (i*512); x < (i*512)+512; ++x)
-            matrix[i].Add(CharArrToDouble(mappedData+endPoint+6*x));
+        {
+            double d;
+            std::from_chars(mappedData+endPoint+6*x, mappedData+endPoint+6*x+5, d);
+            matrix[i].Add(d);
+        }
     }
 
     if(i == 511)
@@ -125,7 +135,11 @@ void Thread1024(char* mappedData, std::array<Vector1024, 512>& matrix, int endPo
     for(i = counterIn.fetch_add(1); i < 512;)
     {
         for(int x = (i*1024); x < (i*1024)+1024; ++x)
-            matrix[i].Add(CharArrToDouble(mappedData+endPoint+6*x));
+        {
+            double d;
+            std::from_chars(mappedData+endPoint+6*x, mappedData+endPoint+6*x+5, d);
+            matrix[i].Add(d);
+        }
     }
 
     //TODO
@@ -136,9 +150,9 @@ void Thread1024(char* mappedData, std::array<Vector1024, 512>& matrix, int endPo
         close(inFile);
     }
 
-    std::array<double, 8128> data;
+    double* data = new double[1024];
 
-    CorrelationCoefficients128Threaded(matrix, data);
+    CorrelationCoefficients1024Threaded(matrix, data);
 
     int x = 0;
 
@@ -153,18 +167,9 @@ void Thread1024(char* mappedData, std::array<Vector1024, 512>& matrix, int endPo
     }
 }
 
-
-
-
-
-
-
-
-
-
 int main(int argc, char const* argv[])
 {
-    int file = open("128.data", O_RDONLY);
+    int file = open("512.data", O_RDONLY);
 
     off_t size = lseek(file, 0, SEEK_END);
 
@@ -199,7 +204,11 @@ int main(int argc, char const* argv[])
 
         for(int i = 0; i < dimension; ++i)
             for(int x = (i*dimension); x < (i*dimension)+dimension; ++x)
-                matrix[i].Add(CharArrToDouble(mappedData+endPoint+6*x));
+            {
+                double d;
+                std::from_chars(mappedData+endPoint+6*x, mappedData+endPoint+6*x+5, d);
+                matrix[i].Add(d);
+            }
 
         munmap(mappedData, size);
         close(file);
@@ -220,7 +229,11 @@ int main(int argc, char const* argv[])
 
         for(int i = 0; i < dimension; ++i)
             for(int x = (i*dimension); x < (i*dimension)+dimension; ++x)
-                matrix[i].Add(CharArrToDouble(mappedData+endPoint+6*x));
+            {
+                double d;
+                std::from_chars(mappedData+endPoint+6*x, mappedData+endPoint+6*x+5, d);
+                matrix[i].Add(d);
+            }
 
         munmap(mappedData, size);
         close(file);
@@ -240,7 +253,11 @@ int main(int argc, char const* argv[])
 
         for(int i = 0; i < dimension; ++i)
             for(int x = (i*dimension); x < (i*dimension)+dimension; ++x)
-                matrix[i].Add(CharArrToDouble(mappedData+endPoint+6*x));
+            {
+                double d;
+                std::from_chars(mappedData+endPoint+6*x, mappedData+endPoint+6*x+5, d);
+                matrix[i].Add(d);
+            }
 
         munmap(mappedData, size);
         close(file);
@@ -249,7 +266,7 @@ int main(int argc, char const* argv[])
 
         CorrelationCoefficients512(matrix, data);
 
-        Write512(argv[2], data);
+        Write512("out.txt", data);
 
         return 0;
     }
@@ -258,7 +275,11 @@ int main(int argc, char const* argv[])
 
     for(int i = 0; i < 512; ++i)
         for(int x = (i*dimension); x < (i*dimension)+dimension; ++x)
-            matrix[i].Add(CharArrToDouble(mappedData+endPoint+6*x));
+        {
+            double d;
+            std::from_chars(mappedData+endPoint+6*x, mappedData+endPoint+6*x+5, d);
+            matrix[i].Add(d);
+        }
 
     double* data = new double[523776];
 
@@ -268,13 +289,17 @@ int main(int argc, char const* argv[])
 
     for(int i = 512; i < 1024; ++i)
         for(int x = (i*dimension); x < (i*dimension)+dimension; ++x)
-            matrix[i].Add(CharArrToDouble(mappedData+endPoint+6*x));
+        {
+            double d;
+            std::from_chars(mappedData+endPoint+6*x, mappedData+endPoint+6*x+5, d);
+            matrix[i].Add(d);
+        }
 
     data[index++] = Pearson1024(temp, matrix[0]);
 
     CorrelationCoefficients1024(matrix, data, index);
 
-    Write1024(argv[2], data);
+    Write1024("out.txt", data);
 
     return 0;
 }
