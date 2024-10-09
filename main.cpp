@@ -7,21 +7,22 @@
 
 //TODO
 // 1: fix multithreading
+// 2. fix makefile so it compiles only par or seq version and not both
 // 2: general code cleanup
 // 3: find improvements for report
 
 int inFile;
 int outFile;
 off_t inFileSize;
-off_t outFileSize; //remove later
 
-std::atomic<int> counter(0);
+std::atomic<int> counterIn(0);
+std::atomic<int> counterOut(0);
 
-void Thread128(char* mappedData, std::array<Vector128, 128>& matrix, int endPoint, const std::string& filename)
+void Thread128(char* mappedData, std::array<Vector128, 128>& matrix, int endPoint, char* mappedOut)
 {
     int i = 0;
 
-    for(i = counter.fetch_add(1); i < 128;)
+    for(i = counterIn.fetch_add(1); i < 128;)
     {
         for(int x = (i*128); x < (i*128)+128; ++x)
             matrix[i].Add(CharArrToDouble(mappedData+endPoint+6*x));
@@ -37,7 +38,118 @@ void Thread128(char* mappedData, std::array<Vector128, 128>& matrix, int endPoin
 
     CorrelationCoefficients128Threaded(matrix, data);
 
-    Write128(filename, data);
+    int x = 0;
+
+    for(x = counterOut.fetch_add(1); i < 8128;)
+        WriteThreaded(mappedOut, data[i], i);
+
+    if(x == 8127)
+    {
+        msync(mappedOut, 165000, MS_SYNC);
+        munmap(mappedOut, 165000);
+        close(outFile);
+    }
+}
+
+void Thread256(char* mappedData, std::array<Vector256, 256>& matrix, int endPoint, char* mappedOut)
+{
+    int i = 0;
+
+    for(i = counterIn.fetch_add(1); i < 256;)
+    {
+        for(int x = (i*256); x < (i*256)+256; ++x)
+            matrix[i].Add(CharArrToDouble(mappedData+endPoint+6*x));
+    }
+
+    if(i == 255)
+    {
+        munmap(mappedData, inFileSize);
+        close(inFile);
+    }
+
+    std::array<double, 32640> data;
+
+    CorrelationCoefficients256Threaded(matrix, data);
+
+    int x = 0;
+
+    for(x = counterOut.fetch_add(1); i < 32640;)
+        WriteThreaded(mappedOut, data[i], i);
+
+    if(x == 32639)
+    {
+        msync(mappedOut, 165000, MS_SYNC);
+        munmap(mappedOut, 165000);
+        close(outFile);
+    }
+}
+
+void Thread512(char* mappedData, std::array<Vector512, 512>& matrix, int endPoint, char* mappedOut)
+{
+    int i = 0;
+
+    for(i = counterIn.fetch_add(1); i < 512;)
+    {
+        for(int x = (i*512); x < (i*512)+512; ++x)
+            matrix[i].Add(CharArrToDouble(mappedData+endPoint+6*x));
+    }
+
+    if(i == 511)
+    {
+        munmap(mappedData, inFileSize);
+        close(inFile);
+    }
+
+    std::array<double, 130816> data;
+
+    CorrelationCoefficients512Threaded(matrix, data);
+
+    int x = 0;
+
+    for(x = counterOut.fetch_add(1); i < 130816;)
+        WriteThreaded(mappedOut, data[i], i);
+
+    if(x == 130815)
+    {
+        msync(mappedOut, 165000, MS_SYNC);
+        munmap(mappedOut, 165000);
+        close(outFile);
+    }
+}
+
+void Thread1024(char* mappedData, std::array<Vector1024, 512>& matrix, int endPoint, char* mappedOut)
+{
+    int i = 0;
+
+    for(i = counterIn.fetch_add(1); i < 512;)
+    {
+        for(int x = (i*1024); x < (i*1024)+1024; ++x)
+            matrix[i].Add(CharArrToDouble(mappedData+endPoint+6*x));
+    }
+
+    //TODO
+
+    if(i == 127)
+    {
+        munmap(mappedData, inFileSize);
+        close(inFile);
+    }
+
+    std::array<double, 8128> data;
+
+    CorrelationCoefficients128Threaded(matrix, data);
+
+    int x = 0;
+
+    for(x = counterOut.fetch_add(1); i < 8128;)
+        WriteThreaded(mappedOut, data[i], i);
+
+    if(x == 8127)
+    {
+        msync(mappedOut, 165000, MS_SYNC);
+        munmap(mappedOut, 165000);
+        close(outFile);
+    }
 }
 
 
