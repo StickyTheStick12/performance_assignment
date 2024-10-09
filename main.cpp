@@ -10,24 +10,44 @@
 // 2: general code cleanup
 // 3: find improvements for report
 
+int inFile;
+int outFile;
+off_t inFileSize;
+off_t outFileSize; //remove later
+
 std::atomic<int> counter(0);
 
-void Thread128(char* mappedData, std::array<Vector128, 128>& matrix, int endPoint)
+void Thread128(char* mappedData, std::array<Vector128, 128>& matrix, int endPoint, const std::string& filename)
 {
-    for(int i = counter.fetch_add(1); i < 128;)
+    int i = 0;
+
+    for(i = counter.fetch_add(1); i < 128;)
     {
         for(int x = (i*128); x < (i*128)+128; ++x)
             matrix[i].Add(CharArrToDouble(mappedData+endPoint+6*x));
+    }
+
+    if(i == 127)
+    {
+        munmap(mappedData, inFileSize);
+        close(inFile);
     }
 
     std::array<double, 8128> data;
 
     CorrelationCoefficients128Threaded(matrix, data);
 
-    std::string filename = "output.txt";
-
     Write128(filename, data);
 }
+
+
+
+
+
+
+
+
+
 
 int main(int argc, char const* argv[])
 {
@@ -50,6 +70,18 @@ int main(int argc, char const* argv[])
     endPoint++; //jump over newline
 
     if(dimension == 128) {
+        if('1' != '1') //this wont work
+        {
+            outFile = open(argv[3], O_WRONLY, 0666);
+
+            size_t outFileSize = 95000;
+            ftruncate(outFile, outFileSize);
+
+            char* outFileData = static_cast<char*>(mmap(nullptr, outFileSize, PROT_WRITE, MAP_SHARED, outFile, 0));
+
+            //create threads
+        }
+
         std::array<Vector128, 128> matrix;
 
         for(int i = 0; i < dimension; ++i)
@@ -63,7 +95,8 @@ int main(int argc, char const* argv[])
 
         CorrelationCoefficients128(matrix, data);
 
-        Write128(argv[2], data);
+        //Write128(argv[2], data);
+        Write128("out.txt", data);
 
         return 0;
     }
