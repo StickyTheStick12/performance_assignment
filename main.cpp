@@ -7,7 +7,8 @@
 
 //TODO
 // 1: fix multithreading
-// 2. fix makefile so it compiles only par or seq version and not both
+// 2. check if 128.data generates correct data
+// 3. check the others generate correct data
 // 2: general code cleanup
 // 3: find improvements for report
 
