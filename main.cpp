@@ -9,6 +9,7 @@
 //TODO
 // 1: fix multithreading
 // 2: find improvements for report
+// 3: in analysis.cpp instead of doing the same math, for vector i, in correlation. load everything, perform the mean, magnitude etc and just calculate the j vector and perform the necessary math. THis willl save data.
 
 int inFile;
 int outFile;
