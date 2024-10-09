@@ -2,6 +2,8 @@
 
 #include <condition_variable>
 #include <cstring>
+#include <fstream>
+#include <iomanip>
 
 int writeIndex = 0;
 std::mutex mtx;
@@ -25,19 +27,10 @@ void WriteThreaded(char* mappedData, double data, int index)
     cv.notify_all();
 }
 
-double CharArrToDouble(const char *arr)
-{
-    int firstDigit = arr[2] - '0'; //see if we replace with 48 is better?
-    int SecondDigit = arr[3] - '0';
-    int thirdDigit = arr[4] - '0';
-
-    return firstDigit * 0.1 + SecondDigit*0.01 + thirdDigit*0.001;
-}
-
 void Write128(const std::string& filename, std::array<double, 8128>& data)
 {
     int fd = open(filename.c_str(), O_RDWR | O_CREAT, 0666);
-    size_t fileSize = 165000;
+    size_t fileSize = 164383;
 
     ftruncate(fd, fileSize);
 
@@ -46,8 +39,7 @@ void Write128(const std::string& filename, std::array<double, 8128>& data)
     char buffer[28]; // Sufficient size for a double + newline
 
     for (int i = 0; i < 8128; ++i) {
-        int len = snprintf(buffer, 28, "%.15g\n", data[i]);
-
+        int len = snprintf(buffer, 28, "%.16g\n", data[i]);
         std::memcpy(mappedData, buffer, len);
         mappedData += len;
     }
@@ -60,7 +52,7 @@ void Write128(const std::string& filename, std::array<double, 8128>& data)
 void Write256(const std::string& filename, std::array<double, 32640>& data)
 {
     int fd = open(filename.c_str(), O_RDWR | O_CREAT, 0666);
-    size_t fileSize = 667000;
+    size_t fileSize = 666539;
 
     ftruncate(fd, fileSize);
 
@@ -69,7 +61,7 @@ void Write256(const std::string& filename, std::array<double, 32640>& data)
     char buffer[28]; // Sufficient size for a double + newline
 
     for (int i = 0; i < 32640; ++i) {
-        int len = snprintf(buffer, 28, "%.15g\n", data[i]);
+        int len = snprintf(buffer, 28, "%.16g\n", data[i]);
         std::memcpy(mappedData, buffer, len);
         mappedData += len;
     }
@@ -82,7 +74,7 @@ void Write256(const std::string& filename, std::array<double, 32640>& data)
 void Write512(const std::string& filename, std::array<double, 130816>& data)
 {
     int fd = open(filename.c_str(), O_RDWR | O_CREAT, 0666);
-    size_t fileSize = 2690000;
+    size_t fileSize = 2689713;
 
     ftruncate(fd, fileSize);
 
@@ -91,7 +83,7 @@ void Write512(const std::string& filename, std::array<double, 130816>& data)
     char buffer[28]; // Sufficient size for a double + newline
 
     for (int i = 0; i < 130816; ++i) {
-        int len = snprintf(buffer, 28, "%.15g\n", data[i]);
+        int len = snprintf(buffer, 28, "%.16g\n", data[i]);
         std::memcpy(mappedData, buffer, len);
         mappedData += len;
     }
@@ -104,7 +96,7 @@ void Write512(const std::string& filename, std::array<double, 130816>& data)
 void Write1024(const std::string& filename, double* data)
 {
     int fd = open(filename.c_str(), O_RDWR | O_CREAT, 0666);
-    size_t fileSize = 10830000;
+    size_t fileSize = 10822467;
 
     ftruncate(fd, fileSize);
 
@@ -113,7 +105,7 @@ void Write1024(const std::string& filename, double* data)
     char buffer[28]; // Sufficient size for a double + newline
 
     for (int i = 0; i < 8128; ++i) {
-        int len = snprintf(buffer, 28, "%.15g\n", data[i]);
+        int len = snprintf(buffer, 28, "%.16g\n", data[i]);
         std::memcpy(mappedData, buffer, len);
         mappedData += len;
     }
