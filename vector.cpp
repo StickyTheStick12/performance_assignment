@@ -37,26 +37,27 @@ void Vector128::operator/(double divisor)
 
 double Vector128::Magnitude() const
 {
-    __m256d sum = _mm256_setzero_pd();
+    double result = 0.0;
 
-    for(unsigned i = 0; i < size; i += 4)
-    {
+    for (unsigned i = 0; i < size; i += 4) {
         __m256d vec_data = _mm256_load_pd(&data[i]);
-
         __m256d product = _mm256_mul_pd(vec_data, vec_data);
 
-        sum = _mm256_add_pd(sum, product);
+        alignas(32) double temp[4];
+        _mm256_store_pd(temp, product);
+
+        result += temp[0];
+        result += temp[1];
+        result += temp[2];
+        result += temp[3];
     }
 
-    alignas(32) double result[4];
-    _mm256_store_pd(result, sum);
-
-    return sqrt(result[0] + result[1] + result[2] + result[3]);
+    return sqrt(result);
 }
 
 double Vector128::DotProduct(const Vector128 &other) const
 {
-    __m256d sum = _mm256_setzero_pd();
+    double result;
 
     for(unsigned i = 0; i < size; i += 4)
     {
@@ -65,13 +66,16 @@ double Vector128::DotProduct(const Vector128 &other) const
 
         __m256d product = _mm256_mul_pd(vecData, otherVecData);
 
-        sum = _mm256_add_pd(sum, product);
+        alignas(32) double temp[4];
+        _mm256_store_pd(temp, product);
+
+        result += temp[0];
+        result += temp[1];
+        result += temp[2];
+        result += temp[3];
     }
 
-    alignas(32) double result[4];
-    _mm256_store_pd(result, sum);
-
-    return result[0] + result[1] + result[2] + result[3];
+    return result;
 }
 
 void Vector256::Add(const double num)
@@ -111,26 +115,27 @@ void Vector256::operator/(double divisor)
 
 double Vector256::Magnitude() const
 {
-    __m256d sum = _mm256_setzero_pd();
+    double result = 0.0;
 
-    for(unsigned i = 0; i < size; i += 4)
-    {
+    for (unsigned i = 0; i < size; i += 4) {
         __m256d vec_data = _mm256_load_pd(&data[i]);
-
         __m256d product = _mm256_mul_pd(vec_data, vec_data);
 
-        sum = _mm256_add_pd(sum, product);
+        alignas(32) double temp[4];
+        _mm256_store_pd(temp, product);
+
+        result += temp[0];
+        result += temp[1];
+        result += temp[2];
+        result += temp[3];
     }
 
-    alignas(32) double result[4];
-    _mm256_store_pd(result, sum);
-
-    return sqrt(result[0] + result[1] + result[2] + result[3]);
+    return sqrt(result);
 }
 
 double Vector256::DotProduct(const Vector256 &other) const
 {
-    __m256d sum = _mm256_setzero_pd();
+    double result;
 
     for(unsigned i = 0; i < size; i += 4)
     {
@@ -139,13 +144,16 @@ double Vector256::DotProduct(const Vector256 &other) const
 
         __m256d product = _mm256_mul_pd(vecData, otherVecData);
 
-        sum = _mm256_add_pd(sum, product);
+        alignas(32) double temp[4];
+        _mm256_store_pd(temp, product);
+
+        result += temp[0];
+        result += temp[1];
+        result += temp[2];
+        result += temp[3];
     }
 
-    alignas(32) double result[4];
-    _mm256_store_pd(result, sum);
-
-    return result[0] + result[1] + result[2] + result[3];
+    return result;
 }
 
 void Vector512::Add(const double num)
@@ -185,26 +193,27 @@ void Vector512::operator/(double divisor)
 
 double Vector512::Magnitude() const
 {
-    __m256d sum = _mm256_setzero_pd();
+    double result = 0.0;
 
-    for(unsigned i = 0; i < size; i += 4)
-    {
+    for (unsigned i = 0; i < size; i += 4) {
         __m256d vec_data = _mm256_load_pd(&data[i]);
-
         __m256d product = _mm256_mul_pd(vec_data, vec_data);
 
-        sum = _mm256_add_pd(sum, product);
+        alignas(32) double temp[4];
+        _mm256_store_pd(temp, product);
+
+        result += temp[0];
+        result += temp[1];
+        result += temp[2];
+        result += temp[3];
     }
 
-    alignas(32) double result[4];
-    _mm256_store_pd(result, sum);
-
-    return sqrt(result[0] + result[1] + result[2] + result[3]);
+    return sqrt(result);
 }
 
 double Vector512::DotProduct(const Vector512 &other) const
 {
-    __m256d sum = _mm256_setzero_pd();
+    double result;
 
     for(unsigned i = 0; i < size; i += 4)
     {
@@ -213,13 +222,16 @@ double Vector512::DotProduct(const Vector512 &other) const
 
         __m256d product = _mm256_mul_pd(vecData, otherVecData);
 
-        sum = _mm256_add_pd(sum, product);
+        alignas(32) double temp[4];
+        _mm256_store_pd(temp, product);
+
+        result += temp[0];
+        result += temp[1];
+        result += temp[2];
+        result += temp[3];
     }
 
-    alignas(32) double result[4];
-    _mm256_store_pd(result, sum);
-
-    return result[0] + result[1] + result[2] + result[3];
+    return result;
 }
 
 void Vector1024::Add(const double num)
@@ -259,26 +271,27 @@ void Vector1024::operator/(double divisor)
 
 double Vector1024::Magnitude() const
 {
-    __m256d sum = _mm256_setzero_pd();
+    double result = 0.0;
 
-    for(unsigned i = 0; i < size; i += 4)
-    {
+    for (unsigned i = 0; i < size; i += 4) {
         __m256d vec_data = _mm256_load_pd(&data[i]);
-
         __m256d product = _mm256_mul_pd(vec_data, vec_data);
 
-        sum = _mm256_add_pd(sum, product);
+        alignas(32) double temp[4];
+        _mm256_store_pd(temp, product);
+
+        result += temp[0];
+        result += temp[1];
+        result += temp[2];
+        result += temp[3];
     }
 
-    alignas(32) double result[4];
-    _mm256_store_pd(result, sum);
-
-    return sqrt(result[0] + result[1] + result[2] + result[3]);
+    return sqrt(result);
 }
 
 double Vector1024::DotProduct(const Vector1024 &other) const
 {
-    __m256d sum = _mm256_setzero_pd();
+    double result;
 
     for(unsigned i = 0; i < size; i += 4)
     {
@@ -287,11 +300,14 @@ double Vector1024::DotProduct(const Vector1024 &other) const
 
         __m256d product = _mm256_mul_pd(vecData, otherVecData);
 
-        sum = _mm256_add_pd(sum, product);
+        alignas(32) double temp[4];
+        _mm256_store_pd(temp, product);
+
+        result += temp[0];
+        result += temp[1];
+        result += temp[2];
+        result += temp[3];
     }
 
-    alignas(32) double result[4];
-    _mm256_store_pd(result, sum);
-
-    return result[0] + result[1] + result[2] + result[3];
+    return result;
 }
