@@ -14,7 +14,7 @@ void WriteThreaded(char* mappedData, double data, int index)
 {
     char buffer[28];
 
-    int len = snprintf(buffer, 28, "%.15g\n", data);
+    int len = snprintf(buffer, 28, "%.16g\n", data);
 
     std::unique_lock<std::mutex> lock(mtx);
     cv.wait(lock, [&] {return writeIndex == index;});
