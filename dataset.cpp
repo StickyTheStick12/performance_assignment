@@ -8,7 +8,7 @@ std::mutex mtx;
 std::condition_variable cv;
 int fileOffset = 0;
 
-void Write128Threaded(char* mappedData, double data, int index)
+void WriteThreaded(char* mappedData, double data, int index)
 {
     char buffer[28];
 
