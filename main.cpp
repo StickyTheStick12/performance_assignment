@@ -4,6 +4,7 @@
 #include <atomic>
 #include <thread>
 #include <charconv>
+#include <cstring>
 
 
 //TODO
@@ -17,8 +18,13 @@ off_t inFileSize;
 std::atomic<int> counterIn(0);
 std::atomic<int> counterOut(0);
 
-void Thread128(char* mappedData, std::array<Vector128, 128>& matrix, int endPoint, char* mappedOut)
+void Thread128(void* args)
 {
+    char* mappedData = static_cast<char*>(args); // Cast args to char*
+    std::array<Vector128, 128>& matrix = *reinterpret_cast<std::array<Vector128, 128>*>(mappedData + inFileSize); // Extract matrix
+    int endPoint = *reinterpret_cast<int*>(mappedData + inFileSize + sizeof(std::array<Vector128, 128>)); // Extract endpoint
+    char* mappedOut = mappedData + inFileSize + sizeof(std::array<Vector128, 128>) + sizeof(int); // Extract output pointer
+
     int i = 0;
 
     for(i = counterIn.fetch_add(1); i < 128;)
@@ -48,8 +54,8 @@ void Thread128(char* mappedData, std::array<Vector128, 128>& matrix, int endPoin
 
     if(x == 8127)
     {
-        msync(mappedOut, 165000, MS_SYNC);
-        munmap(mappedOut, 165000);
+        msync(mappedOut, 164383, MS_SYNC);
+        munmap(mappedOut, 164383);
         close(outFile);
     }
 }
@@ -85,8 +91,8 @@ void Thread256(char* mappedData, std::array<Vector256, 256>& matrix, int endPoin
 
     if(x == 32639)
     {
-        msync(mappedOut, 165000, MS_SYNC);
-        munmap(mappedOut, 165000);
+        msync(mappedOut, 666539, MS_SYNC);
+        munmap(mappedOut, 666539);
         close(outFile);
     }
 }
@@ -122,17 +128,17 @@ void Thread512(char* mappedData, std::array<Vector512, 512>& matrix, int endPoin
 
     if(x == 130815)
     {
-        msync(mappedOut, 165000, MS_SYNC);
-        munmap(mappedOut, 165000);
+        msync(mappedOut, 2689713, MS_SYNC);
+        munmap(mappedOut, 2689713);
         close(outFile);
     }
 }
 
-void Thread1024(char* mappedData, std::array<Vector1024, 512>& matrix, int endPoint, char* mappedOut)
+void Thread1024(char* mappedData, Vector1024* matrix, int endPoint, char* mappedOut)
 {
     int i = 0;
 
-    for(i = counterIn.fetch_add(1); i < 512;)
+    for(i = counterIn.fetch_add(1); i < 1024;)
     {
         for(int x = (i*1024); x < (i*1024)+1024; ++x)
         {
@@ -142,34 +148,32 @@ void Thread1024(char* mappedData, std::array<Vector1024, 512>& matrix, int endPo
         }
     }
 
-    //TODO
-
-    if(i == 127)
+    if(i == 1023)
     {
         munmap(mappedData, inFileSize);
         close(inFile);
     }
 
-    double* data = new double[1024];
+    std::array<double, 523776> data;
 
     CorrelationCoefficients1024Threaded(matrix, data);
 
     int x = 0;
 
-    for(x = counterOut.fetch_add(1); i < 8128;)
+    for(x = counterOut.fetch_add(1); i < 523776;)
         WriteThreaded(mappedOut, data[i], i);
 
-    if(x == 8127)
+    if(x == 523775)
     {
-        msync(mappedOut, 165000, MS_SYNC);
-        munmap(mappedOut, 165000);
+        msync(mappedOut, 10822467, MS_SYNC);
+        munmap(mappedOut, 10822467);
         close(outFile);
     }
 }
 
 int main(int argc, char const* argv[])
 {
-    int file = open("512.data", O_RDONLY);
+    int file = open(argv[1], O_RDONLY);
 
     off_t size = lseek(file, 0, SEEK_END);
 
@@ -187,20 +191,35 @@ int main(int argc, char const* argv[])
 
     endPoint++; //jump over newline
 
+    std::array<Vector128, 128> matrix;
+
     if(dimension == 128) {
-        if('1' != '1') //this wont work
+        if(argv[3] != "1")
         {
             outFile = open(argv[3], O_WRONLY, 0666);
 
-            size_t outFileSize = 95000;
+            size_t outFileSize = 164383;
             ftruncate(outFile, outFileSize);
 
-            char* outFileData = static_cast<char*>(mmap(nullptr, outFileSize, PROT_WRITE, MAP_SHARED, outFile, 0));
+            char* mappedOut = static_cast<char*>(mmap(nullptr, outFileSize, PROT_WRITE, MAP_SHARED, outFile, 0));
 
-            //create threads
+            //create thread array
+            std::array<pthread_t, 32> threads;
+
+            inFile = file;
+            inFileSize = size;
+
+            void* args = new char[inFileSize + sizeof(matrix) + sizeof(int) + sizeof(mappedOut)];
+            std::memcpy(args, mappedData, inFileSize);
+            std::memcpy(static_cast<char*>(args) + inFileSize, &matrix, sizeof(matrix));
+            std::memcpy(static_cast<char*>(args) + inFileSize + sizeof(matrix), &endPoint, sizeof(int));
+            std::memcpy(static_cast<char*>(args) + inFileSize + sizeof(matrix) + sizeof(int), &mappedOut, sizeof(mappedOut));
+
+            int nrThreads = std::from_chars(argv[3]);
+
+            for(int i = 0; i < nrThreads; ++i)
+                pthread_create(&threads[i], nullptr, Thread128, args)
         }
-
-        std::array<Vector128, 128> matrix;
 
         for(int i = 0; i < dimension; ++i)
             for(int x = (i*dimension); x < (i*dimension)+dimension; ++x)
@@ -218,7 +237,7 @@ int main(int argc, char const* argv[])
         CorrelationCoefficients128(matrix, data);
 
         //Write128(argv[2], data);
-        Write128("out.txt", data);
+        Write128(argv[2], data);
 
         return 0;
     }
@@ -266,14 +285,14 @@ int main(int argc, char const* argv[])
 
         CorrelationCoefficients512(matrix, data);
 
-        Write512("out.txt", data);
+        Write512(argv[2], data);
 
         return 0;
     }
 
-    std::array<Vector1024, 512> matrix;
+    Vector1024* matrix = new Vector1024[1024];
 
-    for(int i = 0; i < 512; ++i)
+    for(int i = 0; i < 1024; ++i)
         for(int x = (i*dimension); x < (i*dimension)+dimension; ++x)
         {
             double d;
@@ -281,25 +300,11 @@ int main(int argc, char const* argv[])
             matrix[i].Add(d);
         }
 
-    double* data = new double[523776];
+    std::array<double, 523776> data;
 
-    int index = CorrelationCoefficients1024(matrix, data);
+    CorrelationCoefficients1024(matrix, data);
 
-    Vector1024 temp = matrix[511];
-
-    for(int i = 512; i < 1024; ++i)
-        for(int x = (i*dimension); x < (i*dimension)+dimension; ++x)
-        {
-            double d;
-            std::from_chars(mappedData+endPoint+6*x, mappedData+endPoint+6*x+5, d);
-            matrix[i].Add(d);
-        }
-
-    data[index++] = Pearson1024(temp, matrix[0]);
-
-    CorrelationCoefficients1024(matrix, data, index);
-
-    Write1024("out.txt", data);
+    Write1024(argv[2], data);
 
     return 0;
 }
