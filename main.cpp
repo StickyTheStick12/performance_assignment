@@ -10,6 +10,8 @@
 //TODO
 // 1: fix multithreading
 // 2: find improvements for report
+//either set the arrays as global variables and then pass the other things as parameters, or change the other to loadu.
+
 
 int inFile;
 int outFile;
