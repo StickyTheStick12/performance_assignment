@@ -93,7 +93,7 @@ void Write512(const std::string& filename, std::array<double, 130816>& data)
     close(fd);
 }
 
-void Write1024(const std::string& filename, double* data)
+void Write1024(const std::string& filename, std::array<double, 523776>& data)
 {
     int fd = open(filename.c_str(), O_RDWR | O_CREAT, 0666);
     size_t fileSize = 10822467;
@@ -104,7 +104,7 @@ void Write1024(const std::string& filename, double* data)
 
     char buffer[28]; // Sufficient size for a double + newline
 
-    for (int i = 0; i < 8128; ++i) {
+    for (int i = 0; i < 523776; ++i) {
         int len = snprintf(buffer, 28, "%.16g\n", data[i]);
         std::memcpy(mappedData, buffer, len);
         mappedData += len;
