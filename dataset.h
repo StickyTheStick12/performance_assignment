@@ -5,6 +5,7 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include "vector.h"
+#include <unistd.h>
 
 void WriteThreaded(char* mappedData, double data, int index);
 
