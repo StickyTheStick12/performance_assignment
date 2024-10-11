@@ -1,14 +1,9 @@
 #include "analysis.h"
 #include "vector.h"
 #include "dataset.h"
-#include <atomic>
 #include <pthread.h>
 #include <charconv>
-
-//TODO
-// 1: fix multithreading
-// 2: find improvements for report
-// 3: fix madvise for threaded, use willneed/dontneed?
+#include <condition_variable>
 
 int inFile;
 int outFile;
@@ -16,40 +11,71 @@ off_t inFileSize;
 
 std::atomic<int> counterIn(0);
 std::atomic<int> counterOut(0);
+std::atomic<int> activeThreads(0);
 char* mappedDataThread;
-int endPointThread;
 char* mappedOutThread;
 
-void* Thread128(std::array<Vector128, 128>* matrix)
+
+struct ThreadData128 {
+    alignas(32) std::array<Vector128, 128> matrix;
+    std::array<double, 8128> data;
+};
+
+struct ThreadData256 {
+    alignas(32) std::array<Vector256, 256> matrix;
+    std::array<double, 32640> data;
+};
+
+struct ThreadData512 {
+    alignas(32) std::array<Vector512, 512> matrix;
+    std::array<double, 130816> data;
+};
+
+struct ThreadData1024 {
+    alignas(32) Vector1024* matrix = new Vector1024[1024];
+    std::array<double, 523776> data;
+};
+
+void* Thread128(ThreadData128* threadData)
 {
     int i;
 
+    ++activeThreads;
+
     while ((i = counterIn.fetch_add(1)) < 128)
     {
-        for(int x = (i*128); x < (i*128)+128; ++x)
-        {
+        char* mappedData = mappedDataThread+i*768;
+
+        madvise(mappedData, 767*4, MADV_WILLNEED);
+
+        for(int j = 0; j < 128; ++j) {
             double d;
-            std::from_chars(mappedDataThread+endPointThread+6*x, mappedDataThread+endPointThread+6*x+5, d);
-            (*matrix)[i].Add(d);
+            char* endPtr = mappedData+5;
+            std::from_chars(mappedData, endPtr, d);
+
+            threadData->matrix[i].Add(d);
+            mappedData = endPtr + 1;
         }
     }
 
-    if(i == 127)
+    if(--activeThreads == 0)
     {
         munmap(mappedDataThread, inFileSize);
         close(inFile);
     }
 
-    std::array<double, 8128> data;
-
-    CorrelationCoefficients128Threaded(*matrix, data);
+    CorrelationCoefficients128Threaded(threadData->matrix, threadData->data);
 
     int x = 0;
 
-    for(x = counterOut.fetch_add(1); i < 8128;)
-        WriteThreaded(mappedOutThread, data[i], i);
+    ++activeThreads;
 
-    if(x == 8127)
+    while((x = counterOut.fetch_add(1)) < 8128)
+        WriteThreaded(mappedOutThread, threadData->data[x], x);
+
+    --activeThreads;
+
+    if(x == 8128)
     {
         msync(mappedOutThread, 164383, MS_SYNC);
         munmap(mappedOutThread, 164383);
@@ -59,120 +85,146 @@ void* Thread128(std::array<Vector128, 128>* matrix)
     return nullptr;
 }
 
-void Thread256(char* mappedData, std::array<Vector256, 256>& matrix, int endPoint, char* mappedOut)
+void* Thread256(ThreadData256* threadData)
 {
-    int i = 0;
+    int i;
 
-    for(i = counterIn.fetch_add(1); i < 256;)
+    ++activeThreads;
+
+    while ((i = counterIn.fetch_add(1)) < 256)
     {
-        for(int x = (i*256); x < (i*256)+256; ++x)
-        {
+        char* mappedData = mappedDataThread+i*1536;
+
+        madvise(mappedData, 1535*4, MADV_WILLNEED);
+
+        for(int j = 0; j < 256; ++j) {
             double d;
-            std::from_chars(mappedData+endPoint+6*x, mappedData+endPoint+6*x+5, d);
-            matrix[i].Add(d);
+            char* endPtr = mappedData+5;
+            std::from_chars(mappedData, endPtr, d);
+            threadData->matrix[i].Add(d);
+
+            mappedData = endPtr + 1;
         }
     }
 
-    if(i == 255)
+    if(--activeThreads == 0)
     {
-        munmap(mappedData, inFileSize);
+        munmap(mappedDataThread, inFileSize);
         close(inFile);
     }
 
-    std::array<double, 32640> data;
-
-    CorrelationCoefficients256Threaded(matrix, data);
+    CorrelationCoefficients256Threaded(threadData->matrix, threadData->data);
 
     int x = 0;
 
-    for(x = counterOut.fetch_add(1); i < 32640;)
-        WriteThreaded(mappedOut, data[i], i);
+    while((x = counterOut.fetch_add(1)) < 32640)
+        WriteThreaded(mappedOutThread, threadData->data[x], x);
 
-    if(x == 32639)
+    if(x == 32640)
     {
-        msync(mappedOut, 666539, MS_SYNC);
-        munmap(mappedOut, 666539);
+        msync(mappedOutThread, 666539, MS_SYNC);
+        munmap(mappedOutThread, 666539);
         close(outFile);
     }
+
+    return nullptr;
 }
 
-void Thread512(char* mappedData, std::array<Vector512, 512>& matrix, int endPoint, char* mappedOut)
+void* Thread512(ThreadData512* threadData)
 {
     int i = 0;
 
-    for(i = counterIn.fetch_add(1); i < 512;)
+    ++activeThreads;
+
+    while ((i = counterIn.fetch_add(1)) < 512)
     {
-        for(int x = (i*512); x < (i*512)+512; ++x)
-        {
+        char* mappedData = mappedDataThread+i*3072;
+
+        //madvise(mappedData, 3071*4, MADV_WILLNEED);
+
+        for(int j = 0; j < 512; ++j) {
             double d;
-            std::from_chars(mappedData+endPoint+6*x, mappedData+endPoint+6*x+5, d);
-            matrix[i].Add(d);
+            char* endPtr = mappedData+5;
+            std::from_chars(mappedData, endPtr, d);
+            threadData->matrix[i].Add(d);
+
+            mappedData = endPtr + 1;
         }
     }
 
-    if(i == 511)
+    if(i == 512)
     {
-        munmap(mappedData, inFileSize);
+        munmap(mappedDataThread, inFileSize);
         close(inFile);
     }
 
-    std::array<double, 130816> data;
-
-    CorrelationCoefficients512Threaded(matrix, data);
+    CorrelationCoefficients512Threaded(threadData->matrix, threadData->data);
 
     int x = 0;
 
-    for(x = counterOut.fetch_add(1); i < 130816;)
-        WriteThreaded(mappedOut, data[i], i);
+    while((x = counterOut.fetch_add(1)) < 130816)
+        WriteThreaded(mappedOutThread, threadData->data[x], x);
 
-    if(x == 130815)
+    if(x == 130816)
     {
-        msync(mappedOut, 2689713, MS_SYNC);
-        munmap(mappedOut, 2689713);
+        msync(mappedOutThread, 2689713, MS_SYNC);
+        munmap(mappedOutThread, 2689713);
         close(outFile);
     }
+
+    return nullptr;
 }
 
-void Thread1024(char* mappedData, Vector1024* matrix, int endPoint, char* mappedOut)
+void* Thread1024(ThreadData1024* threadData)
 {
-    int i = 0;
+    int i;
 
-    for(i = counterIn.fetch_add(1); i < 1024;)
+    ++activeThreads;
+    
+    while ((i = counterIn.fetch_add(1)) < 1024)
     {
-        for(int x = (i*1024); x < (i*1024)+1024; ++x)
-        {
+        char* mappedData = mappedDataThread+i*6144;
+
+        //madvise(mappedData, 6143*4, MADV_WILLNEED);
+
+        for(int j = 0; j < 1024; ++j) {
             double d;
-            std::from_chars(mappedData+endPoint+6*x, mappedData+endPoint+6*x+5, d);
-            matrix[i].Add(d);
+            char* endPtr = mappedData+5;
+            std::from_chars(mappedData, endPtr, d);
+
+            threadData->matrix[i].Add(d);
+            mappedData = endPtr + 1;
         }
     }
 
-    if(i == 1023)
+    if(--activeThreads == 0)
     {
-        munmap(mappedData, inFileSize);
+        munmap(mappedDataThread, inFileSize);
         close(inFile);
     }
 
-    std::array<double, 523776> data;
-
-    CorrelationCoefficients1024Threaded(matrix, data);
+    return nullptr;
+    
+    CorrelationCoefficients1024Threaded(threadData->matrix, threadData->data);
 
     int x = 0;
 
-    for(x = counterOut.fetch_add(1); i < 523776;)
-        WriteThreaded(mappedOut, data[i], i);
+    while((x = counterOut.fetch_add(1)) < 523776)
+        WriteThreaded(mappedOutThread, threadData->data[x], x);
 
-    if(x == 523775)
+    if(x == 523776)
     {
-        msync(mappedOut, 10822467, MS_SYNC);
-        munmap(mappedOut, 10822467);
+        msync(mappedOutThread, 10822467, MS_SYNC);
+        munmap(mappedOutThread, 10822467);
         close(outFile);
     }
+
+    return nullptr;
 }
 
 int main(int argc, char const* argv[])
 {
-    int file = open("1024.data", O_RDONLY);
+    int file = open(argv[1], O_RDONLY);
 
     off_t size = lseek(file, 0, SEEK_END);
 
@@ -192,13 +244,9 @@ int main(int argc, char const* argv[])
     ++mappedData;
 
     if(dimension == 128) {
-        std::array<Vector128, 128> matrix;
-
-        if("1" != "1")
+        if(argv[3] != "1")
         {
-            //todo change madvise here to something else. Prob willneed and then calculate how many bytes there are in a line
-
-            outFile = open("out.txt", O_WRONLY, 0666);
+            outFile = open(argv[2], O_RDWR | O_CREAT, 0666);
 
             size_t outFileSize = 164383;
             ftruncate(outFile, outFileSize);
@@ -208,22 +256,30 @@ int main(int argc, char const* argv[])
             //create thread array
             pthread_t threads[32];
 
-            inFile = file;
-            inFileSize = size;
-
-            int nrThreads = 1;
+            int nrThreads;
+            if (argv[3][1] == '\0') {
+                nrThreads = argv[3][0] - '0'; // Convert first character to integer
+            } else {
+                nrThreads = (argv[3][0] - '0') * 10 + (argv[3][1] - '0'); // Convert first two characters
+            }
 
             mappedDataThread = mappedData;
             mappedOutThread = mappedOut;
 
-            for(int i = 0; i < nrThreads; ++i)
-                pthread_create(&threads[i], nullptr, (void * (*)(void *))Thread128, &matrix);
+            ThreadData128 threadData;
 
-            Thread128(&matrix);
+            for(int i = 0; i < nrThreads-1; ++i)
+                pthread_create(&threads[i], nullptr, (void * (*)(void *))Thread128, &threadData);
 
-            for(int i = 0; i < nrThreads; ++i)
+            Thread128(&threadData);
+
+            for(int i = 0; i < nrThreads-1; ++i)
                 pthread_join(threads[i], nullptr);
+
+            return 0;
         }
+
+        std::array<Vector128, 128> matrix;
 
         for(int i = 0; i < dimension; ++i)
             for(int j = 0; j < dimension; ++j) {
@@ -244,13 +300,47 @@ int main(int argc, char const* argv[])
         CorrelationCoefficients128(matrix, data);
 
         Write128(argv[2], data);
-        //Write128("out.txt", data);
 
         return 0;
     }
 
     if(dimension == 256)
     {
+        if(argv[3] != "1")
+        {
+            outFile = open(argv[2], O_RDWR | O_CREAT, 0666);
+
+            size_t outFileSize = 666539;
+            ftruncate(outFile, outFileSize);
+
+            char* mappedOut = static_cast<char*>(mmap(nullptr, outFileSize, PROT_WRITE, MAP_SHARED, outFile, 0));
+
+            //create thread array
+            pthread_t threads[32];
+
+            int nrThreads;
+            if (argv[3][1] == '\0') {
+                nrThreads = argv[3][0] - '0'; // Convert first character to integer
+            } else {
+                nrThreads = (argv[3][0] - '0') * 10 + (argv[3][1] - '0'); // Convert first two characters
+            }
+
+            mappedDataThread = mappedData;
+            mappedOutThread = mappedOut;
+
+            ThreadData256 threadData;
+
+            for(int i = 0; i < nrThreads-1; ++i)
+                pthread_create(&threads[i], nullptr, (void * (*)(void *))Thread256, &threadData);
+
+            Thread256(&threadData);
+
+            for(int i = 0; i < nrThreads-1; ++i)
+                pthread_join(threads[i], nullptr);
+
+            return 0;
+        }
+
         std::array<Vector256, 256> matrix;
 
         for(int i = 0; i < dimension; ++i)
@@ -278,6 +368,41 @@ int main(int argc, char const* argv[])
 
     if(dimension == 512)
     {
+        if(argv[3] != "1")
+        {
+            outFile = open(argv[2], O_RDWR | O_CREAT, 0666);
+
+            size_t outFileSize = 2689713;
+            ftruncate(outFile, outFileSize);
+
+            char* mappedOut = static_cast<char*>(mmap(nullptr, outFileSize, PROT_WRITE, MAP_SHARED, outFile, 0));
+
+            pthread_t threads[32];
+
+            int nrThreads;
+            if (argv[3][1] == '\0') {
+                nrThreads = argv[3][0] - '0'; // Convert first character to integer
+            } else {
+                nrThreads = (argv[3][0] - '0') * 10 + (argv[3][1] - '0'); // Convert first two characters
+            }
+
+            mappedDataThread = mappedData;
+            mappedOutThread = mappedOut;
+
+            ThreadData512 threadData;
+
+            for(int i = 0; i < nrThreads-1; ++i)
+                pthread_create(&threads[i], nullptr, (void * (*)(void *))Thread512, &threadData);
+
+            Thread512(&threadData);
+
+            for(int i = 0; i < nrThreads-1; ++i)
+                pthread_join(threads[i], nullptr);
+
+            return 0;
+        }
+
+
         std::array<Vector512, 512> matrix;
 
         for(int i = 0; i < dimension; ++i)
@@ -303,7 +428,43 @@ int main(int argc, char const* argv[])
         return 0;
     }
 
-    Vector1024* matrix = new Vector1024[1024];
+    if(argv[3] != "1")
+    {
+        outFile = open(argv[2], O_RDWR | O_CREAT, 0666);
+
+        size_t outFileSize = 10822467;
+        ftruncate(outFile, outFileSize);
+
+        char* mappedOut = static_cast<char*>(mmap(nullptr, outFileSize, PROT_WRITE, MAP_SHARED, outFile, 0));
+
+        madvise(mappedOut, outFileSize, MADV_RANDOM);
+
+        pthread_t threads[32];
+
+        int nrThreads;
+        if (argv[3][1] == '\0') {
+            nrThreads = argv[3][0] - '0'; // Convert first character to integer
+        } else {
+            nrThreads = (argv[3][0] - '0') * 10 + (argv[3][1] - '0'); // Convert first two characters
+        }
+
+        mappedDataThread = mappedData;
+        mappedOutThread = mappedOut;
+
+        ThreadData1024 threadData;
+
+        for(int i = 0; i < nrThreads-1; ++i)
+            pthread_create(&threads[i], nullptr, (void * (*)(void *))Thread1024, &threadData);
+
+        Thread1024(&threadData);
+
+        for(int i = 0; i < nrThreads-1; ++i)
+            pthread_join(threads[i], nullptr);
+
+        return 0;
+    }
+
+    alignas(32) Vector1024* matrix = new Vector1024[1024];
 
     for(int i = 0; i < dimension; ++i)
         for(int j = 0; j < dimension; ++j) {
