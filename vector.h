@@ -3,7 +3,6 @@
 
 #include "immintrin.h"
 #include <cmath>
-#include <thread>
 
 class Vector128
 {
