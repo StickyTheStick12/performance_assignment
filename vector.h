@@ -4,6 +4,7 @@
 #include "immintrin.h"
 #include <cmath>
 
+
 class Vector128
 {
     unsigned size = 0;
