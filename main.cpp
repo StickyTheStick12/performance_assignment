@@ -3,7 +3,9 @@
 #include "dataset.h"
 #include <pthread.h>
 #include <charconv>
-#include <condition_variable>
+#include <barrier>
+#include <cstring>
+#include <memory>
 
 int inFile;
 int outFile;
@@ -33,7 +35,9 @@ struct ThreadData512 {
 
 struct ThreadData1024 {
     alignas(32) Vector1024* matrix = new Vector1024[1024];
-    std::array<double, 523776> data;
+    alignas(32) std::array<double, 523776> data;
+    int nrThreads;
+    std::shared_ptr<std::barrier<>> syncPoint;
 };
 
 void* Thread128(ThreadData128* threadData)
@@ -140,7 +144,7 @@ void* Thread512(ThreadData512* threadData)
     {
         char* mappedData = mappedDataThread+i*3072;
 
-        //madvise(mappedData, 3071*4, MADV_WILLNEED);
+        madvise(mappedData, 3071*4, MADV_WILLNEED);
 
         for(int j = 0; j < 512; ++j) {
             double d;
@@ -177,23 +181,28 @@ void* Thread512(ThreadData512* threadData)
 
 void* Thread1024(ThreadData1024* threadData)
 {
-    int i;
+    int threadId = counterIn.fetch_add(1);
 
-    ++activeThreads;
-    
-    while ((i = counterIn.fetch_add(1)) < 1024)
-    {
-        char* mappedData = mappedDataThread+i*6144;
+    int basechunk_size = 1024 / threadData->nrThreads;
+    int remaindeer = 1024 % threadData->nrThreads;
 
-        //madvise(mappedData, 6143*4, MADV_WILLNEED);
+    int startPos = threadId * basechunk_size + std::min(threadId, remaindeer);
 
+    int chunkSize = basechunk_size + (threadId < remaindeer ? 1 : 0);
+
+    int endPos = startPos + chunkSize;
+
+    char* mappedData = mappedDataThread+startPos*1024*6;
+
+    for(int i = startPos; i < endPos; ++i) {
         for(int j = 0; j < 1024; ++j) {
             double d;
             char* endPtr = mappedData+5;
             std::from_chars(mappedData, endPtr, d);
 
             threadData->matrix[i].Add(d);
-            mappedData = endPtr + 1;
+            mappedData = endPtr;
+            ++mappedData;
         }
     }
 
@@ -203,9 +212,79 @@ void* Thread1024(ThreadData1024* threadData)
         close(inFile);
     }
 
+    int arr2[] =  {0, 299, 1023};
+    int arr4[] =  {0, 137, 299, 511, 1023};
+    int arr8[] =  {0, 66, 137, 214, 299, 396, 511, 661, 1023};
+    int arr16[] =  {0, 32, 66, 100, 137, 174, 214, 255, 299, 346, 396, 451, 511, 580, 661, 767, 1023};
+    int arr32[] =  {0, 16, 32, 49, 66, 83, 100, 118, 137, 155, 174, 194, 214, 234, 255, 277, 299, 322, 346, 371, 396, 423, 451, 480, 511, 544, 580, 618, 661, 710, 767, 842, 1023};
+
+    int base_chunk_size = 523776 / threadData->nrThreads;
+    int remainder = 523776 % threadData->nrThreads;
+
+    int start = threadId * base_chunk_size + std::min(threadId, remainder);
+
+    int chunk_size = base_chunk_size + (threadId < remainder ? 1 : 0);
+
+    int end = start + chunk_size;
+
+    threadData->syncPoint->arrive_and_wait();
+
+    if(threadData->nrThreads == 2) {
+        CorrelationCoefficients1024Threaded(threadData->matrix, threadData->data, arr2[threadId], arr2[threadId+1]);
+
+        Write1024Threaded(mappedOutThread, threadData->data, start, end, threadId);
+
+        if(threadId == 1) {
+            msync(mappedOutThread, 10822467, MS_SYNC);
+            munmap(mappedOutThread, 10822467);
+            close(outFile);
+        }
+    }
+    else if(threadData->nrThreads == 4) {
+        CorrelationCoefficients1024Threaded(threadData->matrix, threadData->data, arr4[threadId], arr4[threadId+1]);
+
+        Write1024Threaded(mappedOutThread, threadData->data, start, end, threadId);
+
+        if(threadId == 3) {
+            msync(mappedOutThread, 10822467, MS_SYNC);
+            munmap(mappedOutThread, 10822467);
+            close(outFile);
+        }
+
+    }
+    else if(threadData->nrThreads == 8) {
+        CorrelationCoefficients1024Threaded(threadData->matrix, threadData->data, arr8[threadId], arr8[threadId+1]);
+        Write1024Threaded(mappedOutThread, threadData->data, start, end, threadId);
+
+        if(threadId == 7) {
+            msync(mappedOutThread, 10822467, MS_SYNC);
+            munmap(mappedOutThread, 10822467);
+            close(outFile);
+        }
+    }
+    else if(threadData->nrThreads == 16) {
+        CorrelationCoefficients1024Threaded(threadData->matrix, threadData->data, arr16[threadId], arr16[threadId+1]);
+        Write1024Threaded(mappedOutThread, threadData->data, start, end, threadId);
+
+        if(threadId == 15) {
+            msync(mappedOutThread, 10822467, MS_SYNC);
+            munmap(mappedOutThread, 10822467);
+            close(outFile);
+        }
+    }
+    else if(threadData->nrThreads == 32) {
+        CorrelationCoefficients1024Threaded(threadData->matrix, threadData->data, arr32[threadId], arr32[threadId+1]);
+
+        Write1024Threaded(mappedOutThread, threadData->data, start, end, threadId);
+
+        if(threadId == 31) {
+            msync(mappedOutThread, 10822467, MS_SYNC);
+            munmap(mappedOutThread, 10822467);
+            close(outFile);
+        }
+    }
+
     return nullptr;
-    
-    CorrelationCoefficients1024Threaded(threadData->matrix, threadData->data);
 
     int x = 0;
 
@@ -428,7 +507,7 @@ int main(int argc, char const* argv[])
         return 0;
     }
 
-    if(argv[3] != "1")
+    if(strcmp(argv[3], "1") != 0)
     {
         outFile = open(argv[2], O_RDWR | O_CREAT, 0666);
 
@@ -452,6 +531,10 @@ int main(int argc, char const* argv[])
         mappedOutThread = mappedOut;
 
         ThreadData1024 threadData;
+        threadData.nrThreads = nrThreads;
+        activeThreads = nrThreads;
+
+        threadData.syncPoint = std::make_shared<std::barrier<>>(nrThreads);
 
         for(int i = 0; i < nrThreads-1; ++i)
             pthread_create(&threads[i], nullptr, (void * (*)(void *))Thread1024, &threadData);
